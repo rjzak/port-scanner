@@ -5,5 +5,8 @@ edition = "2021"
 
 
 [dependencies]
+anyhow = { version = "1.0", features = ["std"] }
 clap = { version = "4.4", features = ["derive", "help", "std", "usage"], default-features = false }
+crossbeam-channel = "0.5"
 ipnet = { version = "2.8" }
+num_cpus = { version = "1.16", default-features = false }
