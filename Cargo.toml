@@ -8,6 +8,7 @@ description = "Simple port scanner application and port information library"
 repository = "https://github.com/rjzak/port-scanner"
 categories = ["network-programming"]
 keywords = ["networking"]
+exclude = [".github"]
 
 [dependencies]
 anyhow = { version = "1.0", features = ["std"] }
