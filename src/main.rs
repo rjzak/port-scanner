@@ -54,10 +54,18 @@ fn main() -> anyhow::Result<ExitCode> {
             if recr.is_empty() {
                 break;
             }
-            let server: String = recr.recv().unwrap();
+            #[allow(unused_assignments)]
+            let mut server: String = "".into();
+            #[allow(unused_assignments)]
+            let mut port: u16 = 0;
+            (server, port) = recr.recv().unwrap();
             if let Ok(found) = port_scanner::scan(&server) {
                 if found {
-                    println!("{server}");
+                    if let Some(service) = port_scanner::PORTS.get(&port) {
+                        println!("{server} – {service}");
+                    } else {
+                        println!("{server}");
+                    }
                 }
             }
         }));
@@ -67,7 +75,7 @@ fn main() -> anyhow::Result<ExitCode> {
         for ip in ips.hosts() {
             for port in 1..65535u16 {
                 let server = format!("{ip}:{port}");
-                sender.send(server)?;
+                sender.send((server, port))?;
             }
         }
     }
@@ -77,7 +85,7 @@ fn main() -> anyhow::Result<ExitCode> {
         let mut rdr = csv::Reader::from_reader(file);
         for result in rdr.deserialize() {
             let host: Host = result?;
-            sender.send(host.to_string())?;
+            sender.send((host.to_string(), host.port))?;
         }
     }
 

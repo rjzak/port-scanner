@@ -1,8 +1,13 @@
 [package]
 name = "port-scanner"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
-
+license = "Apache-2.0"
+authors = ["Richard Zak <richard.j.zak@gmail.com>"]
+description = "Simple port scanner application and port information library"
+repository = "https://github.com/rjzak/port-scanner"
+categories = ["network-programming"]
+keywords = ["networking"]
 
 [dependencies]
 anyhow = { version = "1.0", features = ["std"] }
@@ -10,5 +15,6 @@ clap = { version = "4.4", features = ["derive", "help", "std", "usage"], default
 crossbeam-channel = "0.5"
 csv = "1.3.0"
 ipnet = { version = "2.8" }
+lazy_static = "^1.4"
 num_cpus = { version = "1.16", default-features = false }
 serde = { version = "1.0", features = ["derive", "std"], default-features = false }
