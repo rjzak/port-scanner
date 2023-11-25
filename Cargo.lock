@@ -151,7 +151,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "port-scanner"
+name = "ports-scanner"
 version = "0.0.1"
 dependencies = [
  "anyhow",

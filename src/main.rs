@@ -59,9 +59,9 @@ fn main() -> anyhow::Result<ExitCode> {
             #[allow(unused_assignments)]
             let mut port: u16 = 0;
             (server, port) = recr.recv().unwrap();
-            if let Ok(found) = port_scanner::scan(&server) {
+            if let Ok(found) = ports_scanner::scan(&server) {
                 if found {
-                    if let Some(service) = port_scanner::PORTS.get(&port) {
+                    if let Some(service) = ports_scanner::PORTS.get(&port) {
                         println!("{server} – {service}");
                     } else {
                         println!("{server}");
