@@ -4,10 +4,19 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 use std::{fmt, thread};
 
+use ports_scanner::{PORTS, PORT_MAX};
+
 use clap::{Parser, ValueHint};
 use ipnet::IpNet;
 use serde::Deserialize;
 
+/// It's expected this will be read from a CSV, and the `csv` crate expects headers.
+/// Example:
+/// ```
+/// host,port
+/// 127.0.0.1,22
+/// 127.0,0,1,80
+/// ```
 #[derive(Debug, Deserialize)]
 struct Host {
     pub host: String,
@@ -45,27 +54,21 @@ fn main() -> anyhow::Result<ExitCode> {
         return Ok(ExitCode::FAILURE);
     }
 
-    let (sender, receiver) = crossbeam_channel::bounded(args.threads);
+    let (sender, receiver) = crossbeam_channel::bounded::<(String, u16)>(args.threads.max(1));
     let mut threads = Vec::with_capacity(args.threads);
 
-    for _ in 0..args.threads {
+    for _ in 0..args.threads.max(1) {
         let recr = receiver.clone();
         threads.push(thread::spawn(move || loop {
             if recr.is_empty() {
                 break;
             }
-            #[allow(unused_assignments)]
-            let mut server: String = "".into();
-            #[allow(unused_assignments)]
-            let mut port: u16 = 0;
-            (server, port) = recr.recv().unwrap();
-            if let Ok(found) = ports_scanner::scan(&server) {
-                if found {
-                    if let Some(service) = ports_scanner::PORTS.get(&port) {
-                        println!("{server} – {service}");
-                    } else {
-                        println!("{server}");
-                    }
+            let (server, port) = recr.recv().unwrap();
+            if ports_scanner::scan(&server) {
+                if let Some(service) = PORTS.get(&port) {
+                    println!("{server} – {service}");
+                } else {
+                    println!("{server}");
                 }
             }
         }));
@@ -73,7 +76,7 @@ fn main() -> anyhow::Result<ExitCode> {
 
     if let Some(ips) = args.net {
         for ip in ips.hosts() {
-            for port in 1..65535u16 {
+            for port in 1..PORT_MAX {
                 let server = format!("{ip}:{port}");
                 sender.send((server, port))?;
             }

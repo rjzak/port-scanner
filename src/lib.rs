@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 use std::net::{Shutdown, TcpStream};
 
-use anyhow::Result;
 use ipnet::IpNet;
 use lazy_static::lazy_static;
+
+pub const PORT_MAX: u16 = 65535u16; // (2^16)-1
 
 lazy_static! {
     /// Source: https://en.wikipedia.org/wiki/List_of_TCP_and_UDP_port_numbers
@@ -67,28 +68,95 @@ lazy_static! {
     };
 }
 
-pub fn scan(host: &str) -> Result<bool> {
+pub fn scan(host: &str) -> bool {
     let stream = match TcpStream::connect(host) {
         Ok(s) => s,
         Err(_) => {
-            return Ok(false);
+            return false;
         }
     };
     stream.shutdown(Shutdown::Both).unwrap_or_default();
-    Ok(true)
+    true
 }
 
-pub fn scan_range(range: IpNet) -> Result<Vec<String>> {
+pub fn scan_range(range: IpNet) -> Vec<String> {
     let mut found = vec![];
 
     for ip in range.hosts() {
-        for port in 1..65535u16 {
+        for port in 1..PORT_MAX {
             let host = format!("{ip}:{port}");
-            if scan(&host)? {
+            if scan(&host) {
                 found.push(host);
             }
         }
     }
 
-    Ok(found)
+    found
+}
+
+#[cfg(test)]
+mod tests {
+    use super::scan_range;
+
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    use std::str::FromStr;
+    use std::thread;
+
+    use ipnet::IpNet;
+    use rand::Rng;
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn test() {
+        let mut rng = rand::thread_rng();
+
+        let port = rng.gen_range(1025..1040) as u16;
+        let expected = format!("127.0.0.1:{port}");
+
+        let server = tokio::spawn(async move {
+            let listener = TcpListener::bind(expected).unwrap();
+            for stream in listener.incoming() {
+                match stream {
+                    Ok(mut stream) => {
+                        thread::spawn(move || {
+                            loop {
+                                let mut read = [0; 1028];
+                                match stream.read(&mut read) {
+                                    Ok(n) => {
+                                        if n == 0 {
+                                            // connection was closed
+                                            break;
+                                        }
+                                        stream.write_all(&read[0..n]).unwrap();
+                                    }
+                                    Err(err) => {
+                                        eprintln!("{err}");
+                                        break;
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    Err(_) => {
+                        println!("Error");
+                        break;
+                    }
+                }
+            }
+        });
+        assert!(!server.is_finished());
+        let expected = format!("127.0.0.1:{port}");
+        eprintln!("Scanning localhost.");
+
+        let found = scan_range(IpNet::from_str("127.0.0.1/32").unwrap());
+        let found = found
+            .iter()
+            .filter(|&h| *h == expected)
+            .clone()
+            .collect::<Vec<&String>>();
+
+        server.abort();
+
+        assert_eq!(found.len(), 1);
+    }
 }
